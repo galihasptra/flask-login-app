@@ -9,14 +9,17 @@ app = Flask(__name__)
 app.secret_key = 'rahasia123'
 app.permanent_session_lifetime = timedelta(minutes=5)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 db = SQLAlchemy(app)
 
+# Cek ekstensi file
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Model User
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
@@ -25,6 +28,7 @@ class User(db.Model):
     email = db.Column(db.String(100))
     foto = db.Column(db.String(100))
 
+# Buat DB dan user admin default
 with app.app_context():
     db.create_all()
     if not User.query.filter_by(username='admin').first():
@@ -36,7 +40,7 @@ with app.app_context():
         )
         db.session.add(admin)
         db.session.commit()
-        print("===> DATABASE SUKSES DIBUAT ULANG")
+        print("===> DATABASE dibuat dan user admin ditambahkan")
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -119,9 +123,9 @@ def edit_profile():
 
         if not check_password_hash(user.password, current_password):
             error = "Password lama salah."
-        elif len(new_password) < 6:
+        elif new_password and len(new_password) < 6:
             error = "Password baru minimal 6 karakter."
-        elif new_password != confirm_new_password:
+        elif new_password and new_password != confirm_new_password:
             error = "Konfirmasi password tidak cocok."
         else:
             user.nama = nama
@@ -130,7 +134,8 @@ def edit_profile():
                 filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 user.foto = filename
-            user.password = generate_password_hash(new_password)
+            if new_password:
+                user.password = generate_password_hash(new_password)
             db.session.commit()
             success = "Profil berhasil diperbarui."
 
